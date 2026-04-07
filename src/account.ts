@@ -1,6 +1,6 @@
 import { validation_rules } from "./validation_rules.js";
 
-type AccountData = {
+export type AccountData = {
     username: string;
     displayName: string;
     pubKey: string;
