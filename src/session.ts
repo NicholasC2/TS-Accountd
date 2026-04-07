@@ -1,27 +1,49 @@
-import Crypto from "node:crypto"
+import { randomUUID } from "node:crypto";
 
-export class Session {
+type SessionData = {
     id: string;
     username: string;
     createdAt: number;
+};
 
-    constructor(data: {
-        id: string;
-        username: string;
-        createdAt: number;
-    }) {
+export class Session {
+    // Private
+
+    private id: string;
+    private username: string;
+    private createdAt: number;
+
+    private constructor(data: SessionData) {
         this.id = data.id;
         this.username = data.username;
         this.createdAt = data.createdAt;
     }
 
+    // -----
+
     static create(username: string): Session {
         return new Session({
-            id: Crypto.randomUUID(),
+            id: randomUUID(),
             username,
             createdAt: Date.now()
         });
     }
+
+    // Getters
+
+    getId(): string {
+        return this.id;
+    }
+
+    getUsername(): string {
+        return this.username;
+    }
+
+    getCreatedAt(): number {
+        return this.createdAt;
+    }
+
+    // -----
     
     toJSON() {
         return {
@@ -31,11 +53,15 @@ export class Session {
         };
     }
 
-    static fromJSON(data: {
-        id: string;
-        username: string;
-        createdAt: number;
-    }): Session {
+    static fromJSON(data: SessionData): Session {
+        if (
+            typeof data.id !== "string" ||
+            typeof data.username !== "string" ||
+            typeof data.createdAt !== "number"
+        ) {
+            throw new Error("Invalid session data");
+        }
+
         return new Session(data);
     }
 }

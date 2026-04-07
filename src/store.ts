@@ -5,11 +5,11 @@ export class AccountStore {
     private accounts = new Map<string, Account>();
 
     add(account: Account) {
-        if (this.accounts.has(account.username)) {
+        if (this.accounts.has(account.getUsername())) {
             throw new Error("Username already exists");
         }
 
-        this.accounts.set(account.username, account);
+        this.accounts.set(account.getUsername(), account);
     }
 
     get(username: string): Account | undefined {
@@ -20,7 +20,7 @@ export class AccountStore {
         const accounts: object[] = [];
 
         this.accounts.forEach(account => {
-            accounts.push(account.toJSON(true));
+            accounts.push(account.toJSON());
         })
 
         return accounts;
@@ -45,18 +45,18 @@ export class SessionStore {
 
         do {
             session = Session.create(username);
-        } while (this.sessions.has(session.id));
+        } while (this.sessions.has(session.getId()));
 
-        this.sessions.set(session.id, session);
+        this.sessions.set(session.getId(), session);
         return session;
     }
 
     add(session: Session) {
-        if (this.sessions.has(session.id)) {
+        if (this.sessions.has(session.getId())) {
             throw new Error("Session ID already exists");
         }
 
-        this.sessions.set(session.id, session);
+        this.sessions.set(session.getId(), session);
     }
 
     get(id: string): Session | undefined {

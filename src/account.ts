@@ -1,54 +1,46 @@
-import { validation_rules, scrypt_options } from "./validation_rules.js";
-import Crypto from "node:crypto"
-import { promisify } from "node:util";
+import { validation_rules } from "./validation_rules.js";
 
-const scrypt = promisify(Crypto.scrypt) as (
-    password: Crypto.BinaryLike,
-    salt: Crypto.BinaryLike,
-    keylen: number,
-    options: Crypto.ScryptOptions
-) => Promise<Buffer>;
+type AccountData = {
+    username: string;
+    displayName: string;
+    pubKey: string;
+};
 
 export class Account {
-    username: string = "";
-    displayName: string = "";
-    #password: {
-        value: string;
-        salt: string;
-    };
+    // Private
 
-    constructor(data: {
-        username: string;
-        password: { value: string; salt: string };
-        displayName: string;
-    }) {
+    private username: string;
+    private displayName: string;
+    private pubKey: string;
+
+    private constructor(data: AccountData) {
         this.username = data.username;
-        this.#password = data.password;
         this.displayName = data.displayName;
+        this.pubKey = data.pubKey;
     }
 
-    static async create(data: {
-        username: string;
-        password: string;
-        displayName: string;
-    }): Promise<Account> {
+    // -----
+
+    static create(data: AccountData): Account {
         const username = Account.normalizeUsername(data.username);
         const displayName = Account.normalizeDisplayName(data.displayName);
-        const password = await Account.hashPassword(data.password);
+        const pubKey = Account.normalizePubKey(data.pubKey);
 
         return new Account({
             username,
-            password,
-            displayName
+            displayName,
+            pubKey
         });
     }
 
-    static normalizePassword(password: string): string {
-        const newPassword = password.trim();
-        if (!validation_rules.PASSWORD.test(newPassword)) {
-            throw new Error("Password must contain one letter, one number, and be 6 characters or longer");
+    // Normalize
+
+    static normalizePubKey(pubKey: string): string {
+        const key = pubKey.trim();
+        if (key.length < 32) {
+            throw new Error("Invalid public key");
         }
-        return newPassword;
+        return key;
     }
 
     static normalizeUsername(username: string): string {
@@ -67,9 +59,7 @@ export class Account {
         return newDisplayName;
     }
 
-    async setPassword(password: string) {
-        this.#password = await Account.hashPassword(password);
-    }
+    // Setters
 
     setUsername(username: string) {
         this.username = Account.normalizeUsername(username);
@@ -79,60 +69,35 @@ export class Account {
         this.displayName = Account.normalizeDisplayName(displayName);
     }
 
-    static async hashPassword(password: string): Promise<{ value: string; salt: string }> {
-        const normalizedPassword = Account.normalizePassword(password);
-        const salt = Crypto.randomBytes(16).toString("hex");
-        const hash = await Account.deriveKey(normalizedPassword, salt);
-
-        return { value: hash, salt };
+    setPubKey(pubKey: string) {
+        this.pubKey = Account.normalizePubKey(pubKey);
     }
 
-    private static async deriveKey(password: string, salt: string): Promise<string> {
-        const key = (await scrypt(password, salt, 32, scrypt_options)) as Buffer;
-        return key.toString("hex");
-    }
-    
-    async verifyPassword(password: string): Promise<boolean> {
-        if (!this.#password?.value || !this.#password?.salt) {
-            throw new Error("Password not set");
-        }
+    // Getters
 
-        const inputPassword = password || "";
-        const hash = await Account.deriveKey(inputPassword, this.#password.salt);
-
-        const a = Buffer.from(hash, "hex");
-        const b = Buffer.from(this.#password.value, "hex");
-
-        if (a.length !== b.length) return false;
-
-        return Crypto.timingSafeEqual(a, b);
+    getUsername(): string {
+        return this.username;
     }
 
-    getPublicAccount(): PublicAccount {
-        return Object.freeze({
-            username: this.username,
-            displayName: this.displayName
-        });
+    getDisplayName(): string {
+        return this.displayName;
     }
 
-    toJSON(includePassword = false) {
+    getPubKey(): string {
+        return this.pubKey;
+    }
+
+    // -----
+
+    toJSON(): AccountData {
         return {
             username: this.username,
             displayName: this.displayName,
-            ...(includePassword && { password: this.#password })
+            pubKey: this.pubKey
         };
     }
 
-    static fromJSON(data: {
-        username: string;
-        displayName: string;
-        password: { value: string; salt: string };
-    }): Account {
-        return new Account(data);
+    static fromJSON(data: AccountData): Account {
+        return Account.create(data);
     }
 }
-
-export type PublicAccount = {
-    username: string;
-    displayName: string;
-};
